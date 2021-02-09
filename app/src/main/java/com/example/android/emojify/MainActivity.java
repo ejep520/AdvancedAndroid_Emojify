@@ -1,18 +1,18 @@
 /*
-* Copyright (C) 2017 The Android Open Source Project
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*  	http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *  	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package com.example.android.emojify;
 
@@ -24,9 +24,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -35,26 +32,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.example.android.emojify.databinding.ActivityMainBinding;
 
 import java.io.File;
 import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
+    private ActivityMainBinding binding;
+
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_STORAGE_PERMISSION = 1;
 
     private static final String FILE_PROVIDER_AUTHORITY = "com.example.android.fileprovider";
-
-    private ImageView mImageView;
-
-    private Button mEmojifyButton;
-    private FloatingActionButton mShareFab;
-    private FloatingActionButton mSaveFab;
-    private FloatingActionButton mClearFab;
-
-    private TextView mTitleTextView;
 
     private String mTempPhotoPath;
 
@@ -64,15 +54,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
-        // Bind the views
-        mImageView = (ImageView) findViewById(R.id.image_view);
-        mEmojifyButton = (Button) findViewById(R.id.emojify_button);
-        mShareFab = (FloatingActionButton) findViewById(R.id.share_button);
-        mSaveFab = (FloatingActionButton) findViewById(R.id.save_button);
-        mClearFab = (FloatingActionButton) findViewById(R.id.clear_button);
-        mTitleTextView = (TextView) findViewById(R.id.title_text_view);
+        //Check for the presence of a camera.
+        if (!getApplicationContext()
+                .getPackageManager()
+                .hasSystemFeature(PackageManager.FEATURE_CAMERA)) {
+            Toast.makeText(
+                    this,
+                    "This app requires a camera. Sorry. Bye!",
+                    Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     /**
@@ -87,7 +81,8 @@ public class MainActivity extends AppCompatActivity {
                 != PackageManager.PERMISSION_GRANTED) {
 
             // If you do not have permission, request it
-            ActivityCompat.requestPermissions(this,
+            ActivityCompat.requestPermissions(
+                    this,
                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     REQUEST_STORAGE_PERMISSION);
         } else {
@@ -98,20 +93,16 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
+                                           @NonNull int[] grantResults) {
         // Called when you request permission to read and write to external storage
-        switch (requestCode) {
-            case REQUEST_STORAGE_PERMISSION: {
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // If you get permission, launch the camera
-                    launchCamera();
-                } else {
-                    // If you do not get permission, show a Toast
-                    Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_SHORT).show();
-                }
-                break;
-            }
+
+        if ((requestCode == REQUEST_STORAGE_PERMISSION) && (grantResults.length > 0) &&
+                (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+            // If you get permission, launch the camera
+            launchCamera();
+        } else {
+            // If you do not get permission, show a Toast
+            Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -174,17 +165,19 @@ public class MainActivity extends AppCompatActivity {
     private void processAndSetImage() {
 
         // Toggle Visibility of the views
-        mEmojifyButton.setVisibility(View.GONE);
-        mTitleTextView.setVisibility(View.GONE);
-        mSaveFab.setVisibility(View.VISIBLE);
-        mShareFab.setVisibility(View.VISIBLE);
-        mClearFab.setVisibility(View.VISIBLE);
+        binding.emojifyButton.setVisibility(View.GONE);
+        binding.titleTextView.setVisibility(View.GONE);
+        binding.saveButton.setVisibility(View.VISIBLE);
+        binding.shareButton.setVisibility(View.VISIBLE);
+        binding.clearButton.setVisibility(View.VISIBLE);
 
         // Resample the saved image to fit the ImageView
         mResultsBitmap = BitmapUtils.resamplePic(this, mTempPhotoPath);
 
+        mResultsBitmap = Emojifier.detectFaces(this, mResultsBitmap);
+
         // Set the new bitmap to the ImageView
-        mImageView.setImageBitmap(mResultsBitmap);
+        binding.imageView.setImageBitmap(mResultsBitmap);
     }
 
 
@@ -224,14 +217,21 @@ public class MainActivity extends AppCompatActivity {
      */
     public void clearImage(View view) {
         // Clear the image and toggle the view visibility
-        mImageView.setImageResource(0);
-        mEmojifyButton.setVisibility(View.VISIBLE);
-        mTitleTextView.setVisibility(View.VISIBLE);
-        mShareFab.setVisibility(View.GONE);
-        mSaveFab.setVisibility(View.GONE);
-        mClearFab.setVisibility(View.GONE);
+        binding.imageView.setImageResource(0);
+        binding.emojifyButton.setVisibility(View.VISIBLE);
+        binding.titleTextView.setVisibility(View.VISIBLE);
+        binding.shareButton.setVisibility(View.GONE);
+        binding.saveButton.setVisibility(View.GONE);
+        binding.clearButton.setVisibility(View.GONE);
 
         // Delete the temporary image file
-        BitmapUtils.deleteImageFile(this, mTempPhotoPath);
+        if (!BitmapUtils.deleteImageFile(this, mTempPhotoPath)) {
+            Toast
+                    .makeText(
+                            this,
+                            "Error deleting the cached image.",
+                            Toast.LENGTH_SHORT)
+                    .show();
+        }
     }
 }
